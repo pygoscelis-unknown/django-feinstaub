@@ -11,6 +11,8 @@ t530: synchronous - import data zip 2024-03 pms1003
   time 290.4066
 t530: multiprocessing - import data zip 2024-03 pms1003
   time 82.3687
+t530: multiprocessing - import data zip 2024-07 bme280
+  time 67870.51146578789
 
 mbp: multiprocessing - import data zip 2024-03 pms1003
   time: 17.09511709213257
