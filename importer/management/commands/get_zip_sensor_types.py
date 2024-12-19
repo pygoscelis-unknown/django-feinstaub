@@ -1,9 +1,9 @@
 import datetime
-import requests
 from bs4 import BeautifulSoup
 from django.core.management import BaseCommand
 from .modules.sensor_type import get_sensor_type
 from .modules.get_env_vars import get_sensor_archive_url
+from .modules import requests
 
 
 class Command(BaseCommand):
@@ -22,10 +22,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         url = get_sensor_archive_url() + "/csv_per_month/"
-        try:
-            page = requests.get(url)
-        except requests.RequestException as e:
-            raise SystemExit(e) from e
+        page = requests.get(url)
         soup = BeautifulSoup(page.content, "html.parser")
         sensor_type_queue = {}
 
@@ -48,37 +45,38 @@ class Command(BaseCommand):
 
             try:
                 datetime.datetime.strptime(href, "%Y-%m")
-                try:
-                    page = requests.get(url + href + "/")
-                except requests.RequestException as e:
-                    raise SystemExit(e) from e
-                soup = BeautifulSoup(page.content, "html.parser")
-                date = href
-
-                for a in soup.find_all("a", href=True):
-                    if href in a["href"]:
-                        sensor_type = get_sensor_type(a["href"], date, True)
-                        with open(filenames[0], "a", encoding="utf-8") as pyf:
-                            if index == 0:
-                                pyf.write('"' + a["href"] + '"')
-                            else:
-                                pyf.write(',\n"' + a["href"] + '"')
-
-                        if sensor_type not in sensor_type_queue:
-                            sensor_type_queue.append(sensor_type)
-
-                            with open(filenames[1], "a", encoding="utf-8") as pyf:
-                                if index == 0:
-                                    pyf.write('"' + sensor_type + '"')
-                                    index += 1
-                                else:
-                                    pyf.write(',\n"' + sensor_type + '"')
-                            print("register sensor type", sensor_type, end="\r")
-                        else:
-                            print("sensor type already in queue, skip ...", end="\r")
-
             except ValueError:
                 continue
+
+            page = requests.get(url + href + "/")
+            soup = BeautifulSoup(page.content, "html.parser")
+            date = href
+
+            for a in soup.find_all("a", href=True):
+                if href in a["href"]:
+                    try:
+                        sensor_type = get_sensor_type(a["href"], date, True)
+                    except ValueError:
+                        continue
+
+                    with open(filenames[0], "a", encoding="utf-8") as pyf:
+                        if index == 0:
+                            pyf.write('"' + a["href"] + '"')
+                        else:
+                            pyf.write(',\n"' + a["href"] + '"')
+
+                    if sensor_type not in sensor_type_queue:
+                        sensor_type_queue.append(sensor_type)
+
+                        with open(filenames[1], "a", encoding="utf-8") as pyf:
+                            if index == 0:
+                                pyf.write('"' + sensor_type + '"')
+                                index += 1
+                            else:
+                                pyf.write(',\n"' + sensor_type + '"')
+                        print("register sensor type", sensor_type, end="\r")
+                    else:
+                        print("sensor type already in queue, skip ...", end="\r")
 
         with open(filenames[0], "a", encoding="utf-8") as pyf:
             pyf.write("\n]")
