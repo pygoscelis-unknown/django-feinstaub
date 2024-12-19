@@ -1,14 +1,14 @@
-from django.core.management import BaseCommand
-import csv
-import os
+"""
+Imports data from a particular zip file available on:
+    `http://archive.sensor.community/csv_per_month/`
+Doesn't use multiprocessing.
+"""
 
-from bs4 import BeautifulSoup
+import time
+import csv
 import urllib.request
 import zipfile
-import datetime
-import time
-import math
-from .modules.sensor_type import get_sensor_type
+from django.core.management import BaseCommand
 from .modules.create_object import create
 from .modules.get_env_vars import get_sensor_archive_url
 from .modules.convert_values import main as convert_values
@@ -17,9 +17,13 @@ from .modules.show_progress import show_download_progress
 
 
 class Command(BaseCommand):
+    """
+    Downloads a zip file of the specified sensor type, unzips them,
+    and loads data from the extracted csv file into database.
+    """
+
     help = """
-    Loads data from csv files into the database.
-    This command downloads zip files of a specific sensor type available in zip format, unzip them and load data from the extracted csv files into the database.
+    Loads data from a zipped csv file into database.
     """
 
     def add_arguments(self, parser):
@@ -57,7 +61,7 @@ class Command(BaseCommand):
             print("Extracting zip ...", end="\r")
             zip_ref.extractall("./")
 
-        with open(file_name + ".csv", newline="") as csvfile:
+        with open(file_name + ".csv", newline="", encoding="utf-8") as csvfile:
             reader = csv.reader(csvfile, delimiter=";")
 
             index = 0
@@ -79,8 +83,8 @@ class Command(BaseCommand):
 
         delete_sensor_data_files(file_name)
 
-        print("total:", object_count, "objects", end="\r")
+        print("Total:", object_count, "objects")
 
         end = time.time()
         total_time = end - start
-        print("time:", total_time)
+        print("Time:", total_time)
