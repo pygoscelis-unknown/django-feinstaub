@@ -1,23 +1,24 @@
-from django.core.management import BaseCommand
-import csv
-
-from bs4 import BeautifulSoup
-import requests
-import urllib.request
-import datetime
 import time
-import math
+import csv
+import urllib.request
+from bs4 import BeautifulSoup
+from django.core.management import BaseCommand
 from .modules.sensor_type import get_sensor_type
 from .modules.create_object import create
 from .modules.get_env_vars import get_sensor_archive_url
 from .modules.convert_values import main as convert_values
+from .modules import requests
 
 
 class Command(BaseCommand):
-    help = """
-    Loads data from csv files into the database.
-    This command loads directly data of all sensor types available in csv format into the database.
+    """
+    Loads data from all csv files of the date into database.
     The date must be set in the following format: YYYY-MM-DD
+    Doesn't use multiprocessing.
+    """
+
+    help = """
+    Loads data from all csv files of the date into database.
     """
 
     def add_arguments(self, parser):
@@ -38,29 +39,28 @@ class Command(BaseCommand):
                 sensor_type = get_sensor_type(i["href"], date)
                 sensor_type = sensor_type.replace("-", "")
 
-                if sensor_type != None:
-                    url = base_url + "/" + i["href"]
+                url = base_url + "/" + i["href"]
 
-                    response = urllib.request.urlopen(url)
+                with urllib.request.urlopen(url) as response:
                     lines = [line.decode("utf-8") for line in response.readlines()]
-                    reader = csv.reader(lines, delimiter=";")
+                reader = csv.reader(lines, delimiter=";")
 
-                    index = 0
-                    header = []
+                index = 0
+                header = []
 
-                    for row in reader:
-                        # ignore first header row
-                        if index == 0:
-                            for i in range(len(row)):
-                                header.append(row[i])
-                            index += 1
+                for row in reader:
+                    # ignore first header row
+                    if index == 0:
+                        for i in range(len(row)):
+                            header.append(row[i])
+                        index += 1
 
-                        else:
-                            new_row = convert_values(sensor_type, header, row)
-                            create(sensor_type, new_row)
+                    else:
+                        new_row = convert_values(sensor_type, header, row)
+                        create(sensor_type, new_row)
 
-                            object_count += 1
-                            print(str(object_count) + ". object created.")
+                        object_count += 1
+                        print(str(object_count) + ". object created.")
         print("total:", object_count, "objects")
 
         end = time.time()
