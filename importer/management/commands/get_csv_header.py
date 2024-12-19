@@ -1,10 +1,10 @@
 import json
-import requests
 from bs4 import BeautifulSoup
 from django.core.management import BaseCommand
 from .modules.csv import get_header
 from .modules.sensor_type import get_sensor_type
 from .modules.get_env_vars import get_sensor_archive_url
+from .modules import requests
 
 
 def register(dictionary, key, url):
@@ -41,10 +41,7 @@ class Command(BaseCommand):
         date = kwargs["date"]
 
         base_url = website + "/" + date + "/"
-        try:
-            page = requests.get(base_url)
-        except requests.RequestException as e:
-            raise SystemExit(e) from e
+        page = requests.get(base_url)
 
         print("scanning page ...", end="\r")
         print(end="\x1b[2K")
@@ -52,18 +49,20 @@ class Command(BaseCommand):
         sensor_type_queue = {}
 
         for a in soup.find_all("a", href=True):
-            sensor_type = get_sensor_type(a["href"], date)
+            try:
+                sensor_type = get_sensor_type(a["href"], date)
+            except ValueError:
+                continue
 
-            if sensor_type is not None:
-                url = base_url + "/" + a["href"]
+            url = base_url + "/" + a["href"]
 
-                if len(sensor_type_queue) == 0:
+            if len(sensor_type_queue) == 0:
+                register(sensor_type_queue, sensor_type, url)
+            else:
+                if sensor_type not in sensor_type_queue:
                     register(sensor_type_queue, sensor_type, url)
                 else:
-                    if sensor_type not in sensor_type_queue:
-                        register(sensor_type_queue, sensor_type, url)
-                    else:
-                        skip(sensor_type)
+                    skip(sensor_type)
 
         print(end="\x1b[2K")
         print("writing file ...")
