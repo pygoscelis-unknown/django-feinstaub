@@ -1,22 +1,23 @@
-from django.core.management import BaseCommand
 import csv
-
-from bs4 import BeautifulSoup
-import requests
-import urllib.request
-import datetime
 import time
-import math
+import urllib.request
+from bs4 import BeautifulSoup
+from django.core.management import BaseCommand
 from .modules.sensor_type import get_sensor_type
 from .modules.create_object import create
 from .modules.get_env_vars import get_sensor_archive_url
 from .modules.convert_values import main as convert_values
+from .modules import requests
 
 
 class Command(BaseCommand):
-    help = """
-    Loads data from csv files of a specific sensor type.
+    """
+    Loads data from csv files of a specific sensor type into database.
     The date must be set in the following format: YYYY-MM-DD
+    """
+
+    help = """
+    Loads data from csv files of a specific sensor type into database.
     """
 
     def add_arguments(self, parser):
@@ -38,15 +39,18 @@ class Command(BaseCommand):
         object_count = 0
         for i in soup.find_all("a", href=True):
             if date in i["href"]:
-                sensor_type = get_sensor_type(i["href"], date)
+                try:
+                    sensor_type = get_sensor_type(i["href"], date)
+                except ValueError:
+                    continue
+
                 sensor_type = sensor_type.replace("-", "")
-
-                if sensor_type != None and inserted_sensor_type == sensor_type:
+                if sensor_type is not None and inserted_sensor_type == sensor_type:
                     url = base_url + "/" + i["href"]
-                    print("current url:", url)
+                    print("Importing from:", url)
 
-                    response = urllib.request.urlopen(url)
-                    lines = [line.decode("utf-8") for line in response.readlines()]
+                    with urllib.request.urlopen(url) as response:
+                        lines = [line.decode("utf-8") for line in response.readlines()]
                     reader = csv.reader(lines, delimiter=";")
 
                     index = 0
@@ -64,9 +68,9 @@ class Command(BaseCommand):
                             create(sensor_type, new_row)
 
                             object_count += 1
-                            print(str(object_count) + ". object created.")
-        print("total:", object_count, "objects")
+                    print("Done.")
+        print("Total:", object_count, "objects")
 
         end = time.time()
         total_time = end - start
-        print("time:", total_time)
+        print("Time:", total_time)
